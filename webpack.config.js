@@ -29,7 +29,7 @@ const config = {
       new UglifyJsPlugin({
         parallel: true,
         uglifyOptions: {
-          compress: { warnings: false },
+          warnings: false,
           output: { comments: false }
         }
       })
