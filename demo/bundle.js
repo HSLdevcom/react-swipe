@@ -26408,6 +26408,7 @@ if (process.env.NODE_ENV === 'production') {
       addEventListener: !!window.addEventListener,
       touch:
         'ontouchstart' in window ||
+        'onmousedown' in window ||
         (window.DocumentTouch && document instanceof window.DocumentTouch),
       transitions: (function(temp) {
         var props = [
@@ -26600,7 +26601,7 @@ if (process.env.NODE_ENV === 'production') {
     }
 
     function stop() {
-      delay = 0;
+      delay = options.auto || 0;
       clearTimeout(interval);
     }
 
@@ -26613,6 +26614,23 @@ if (process.env.NODE_ENV === 'production') {
     var events = {
       handleEvent: function(event) {
         switch (event.type) {
+          case 'mousedown': {
+            this.start(event);
+            break;
+          }
+          case 'mousemove': {
+            this.move(event);
+            break;
+          }
+          case 'mouseout': {
+            offloadFn(this.end(event));
+            break;
+          }
+
+          case 'mouseup': {
+            offloadFn(this.end(event));
+            break;
+          }
           case 'touchstart':
             this.start(event);
             break;
@@ -26637,7 +26655,12 @@ if (process.env.NODE_ENV === 'production') {
         if (options.stopPropagation) event.stopPropagation();
       },
       start: function(event) {
-        var touches = event.touches[0];
+        let touches;
+        if (event.type === 'mousedown') {
+          touches = event;
+        } else {
+          touches = event.touches[0];
+        }
 
         // measure start values
         start = {
@@ -26658,22 +26681,31 @@ if (process.env.NODE_ENV === 'production') {
         // attach touchmove and touchend listeners
         element.addEventListener('touchmove', this, false);
         element.addEventListener('touchend', this, false);
+
+        element.addEventListener('mousemove', this, false);
+        element.addEventListener('mouseup', this, false);
+        element.addEventListener('mouseover', this, false);
+        element.addEventListener('mouseout', this, false);
       },
       move: function(event) {
-        // ensure swiping with one touch and not pinching
-        if (event.touches.length > 1 || (event.scale && event.scale !== 1))
-          return;
+        let touches;
+        if (event.type === 'mousemove') {
+          touches = event;
+        } else {
+          // ensure swiping with one touch and not pinching
+          if (event.touches.length > 1 || (event.scale && event.scale !== 1)) {
+            return;
+          }
+          touches = event.touches[0];
+        }
 
         if (options.disableScroll) return;
-
-        var touches = event.touches[0];
 
         // measure change in x and y
         delta = {
           x: touches.pageX - start.x,
           y: touches.pageY - start.y
         };
-
         // determine if scrolling test has run - one time test
         if (typeof isScrolling == 'undefined') {
           isScrolling = !!(
@@ -26798,6 +26830,9 @@ if (process.env.NODE_ENV === 'production') {
         element.removeEventListener('touchmove', events, false);
         element.removeEventListener('touchend', events, false);
         element.removeEventListener('touchforcechange', function() {}, false);
+        element.removeEventListener('mousemove', events, false);
+        element.removeEventListener('mouseup', events, false);
+        element.removeEventListener('mouseout', events, false);
       },
       transitionEnd: function(event) {
         if (parseInt(event.target.getAttribute('data-index'), 10) == index) {
@@ -26821,6 +26856,9 @@ if (process.env.NODE_ENV === 'production') {
       if (browser.touch) {
         element.addEventListener('touchstart', events, false);
         element.addEventListener('touchforcechange', function() {}, false);
+
+        element.addEventListener('mousedown', events, false);
+        element.addEventListener('mouseup', events, false);
       }
 
       if (browser.transitions) {
